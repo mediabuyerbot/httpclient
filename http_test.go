@@ -2,6 +2,7 @@ package httpclient
 
 import (
 	"bytes"
+	"context"
 	"io/ioutil"
 	"net/http"
 	"testing"
@@ -12,6 +13,16 @@ import (
 
 	"github.com/golang/mock/gomock"
 )
+
+var headers http.Header
+var someErr error
+
+func init() {
+	headers := make(http.Header)
+	headers.Add("key", "value")
+
+	someErr = errors.New("some error")
+}
 
 func newClient(t *testing.T, opts ...Option) (Client, *MockDoer, func()) {
 	ctrl := gomock.NewController(t)
@@ -237,4 +248,120 @@ func TestHttpClient_DoWithRetryAndCheckRetryPolicyHTTP200(t *testing.T) {
 	b, err := ioutil.ReadAll(haveResp.Body)
 	assert.Nil(t, err)
 	assert.Equal(t, b, payload)
+}
+
+func TestHttpClient_Delete(t *testing.T) {
+	client, doer, done := newClient(t, WithBaseURL("http://test.com"))
+	defer done()
+
+	ctx := context.TODO()
+
+	// returns success
+	doer.EXPECT().Do(gomock.Any()).Times(1).Return(&http.Response{
+		StatusCode: 200,
+	}, nil).Do(func(req *http.Request) {
+		assert.Equal(t, req.URL.Path, "/path")
+		assert.Equal(t, req.URL.Host, "test.com")
+		assert.Equal(t, req.Method, http.MethodDelete)
+		assert.Equal(t, req.Header.Get("key"), headers.Get("key"))
+	})
+
+	resp, err := client.Delete(ctx, "/path", headers)
+	assert.Nil(t, err)
+	assert.Equal(t, resp.StatusCode, http.StatusOK)
+
+	// returns error
+	doer.EXPECT().Do(gomock.Any()).Times(1).Return(nil, someErr)
+	resp, err = client.Delete(ctx, "/path", headers)
+	assert.EqualError(t, err, someErr.Error())
+	assert.Nil(t, resp)
+}
+
+func TestHttpClient_Put(t *testing.T) {
+	client, doer, done := newClient(t, WithBaseURL("http://test.com"))
+	defer done()
+
+	payload := []byte(`{"test":"test"}`)
+	ctx := context.TODO()
+
+	// returns success
+	doer.EXPECT().Do(gomock.Any()).Times(1).Return(&http.Response{
+		StatusCode: 200,
+	}, nil).Do(func(req *http.Request) {
+		body, err := ioutil.ReadAll(req.Body)
+		assert.Nil(t, err)
+		assert.Equal(t, req.URL.Path, "/path")
+		assert.Equal(t, req.URL.Host, "test.com")
+		assert.Equal(t, req.Method, http.MethodPut)
+		assert.Equal(t, req.Header.Get("key"), headers.Get("key"))
+		assert.Equal(t, body, payload)
+	})
+
+	resp, err := client.Put(ctx, "/path", ioutil.NopCloser(bytes.NewReader(payload)), headers)
+	assert.Nil(t, err)
+	assert.Equal(t, resp.StatusCode, http.StatusOK)
+
+	// returns error
+	doer.EXPECT().Do(gomock.Any()).Times(1).Return(nil, someErr)
+	resp, err = client.Put(ctx, "/path", nil, headers)
+	assert.EqualError(t, err, someErr.Error())
+	assert.Nil(t, resp)
+}
+
+func TestHttpClient_Post(t *testing.T) {
+	client, doer, done := newClient(t, WithBaseURL("http://test.com"))
+	defer done()
+
+	payload := []byte(`{"test":"test"}`)
+	ctx := context.TODO()
+
+	// returns success
+	doer.EXPECT().Do(gomock.Any()).Times(1).Return(&http.Response{
+		StatusCode: 200,
+	}, nil).Do(func(req *http.Request) {
+		body, err := ioutil.ReadAll(req.Body)
+		assert.Nil(t, err)
+		assert.Equal(t, req.URL.Path, "/path")
+		assert.Equal(t, req.URL.Host, "test.com")
+		assert.Equal(t, req.Method, http.MethodPost)
+		assert.Equal(t, req.Header.Get("key"), headers.Get("key"))
+		assert.Equal(t, body, payload)
+	})
+
+	resp, err := client.Post(ctx, "/path", ioutil.NopCloser(bytes.NewReader(payload)), headers)
+	assert.Nil(t, err)
+	assert.Equal(t, resp.StatusCode, http.StatusOK)
+
+	// returns error
+	doer.EXPECT().Do(gomock.Any()).Times(1).Return(nil, someErr)
+	resp, err = client.Post(ctx, "/path", nil, headers)
+	assert.EqualError(t, err, someErr.Error())
+	assert.Nil(t, resp)
+}
+
+func TestHttpClient_Get(t *testing.T) {
+	client, doer, done := newClient(t, WithBaseURL("http://test.com"))
+	defer done()
+
+	ctx := context.TODO()
+
+	// returns success
+	doer.EXPECT().Do(gomock.Any()).Times(1).Return(&http.Response{
+		StatusCode: 200,
+	}, nil).Do(func(req *http.Request) {
+		assert.Equal(t, req.URL.Path, "/path")
+		assert.Equal(t, req.URL.Host, "test.com")
+		assert.Equal(t, req.Method, http.MethodGet)
+		assert.Equal(t, req.Header.Get("key"), headers.Get("key"))
+	})
+
+	resp, err := client.Get(ctx, "/path", headers)
+	assert.Nil(t, err)
+	assert.Equal(t, resp.StatusCode, http.StatusOK)
+
+	// returns error
+	doer.EXPECT().Do(gomock.Any()).Times(1).Return(nil, someErr)
+	resp, err = client.Get(ctx, "/path", headers)
+	assert.EqualError(t, err, someErr.Error())
+	assert.Nil(t, resp)
 }

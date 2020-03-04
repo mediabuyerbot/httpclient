@@ -28,6 +28,7 @@ type HttpClient struct {
 	checkRetry   CheckRetry
 	backOff      BackOff
 	errorHandler ErrorHandler
+	timeouts     time.Duration
 }
 
 var defaultBackOffPolicy = func(attemptNum int, resp *http.Response) time.Duration {
@@ -44,6 +45,10 @@ func New(opts ...Option) (Client, error) {
 	}
 	for _, opt := range opts {
 		opt(&client)
+	}
+	cli, ok := client.client.(*http.Client)
+	if ok {
+		cli.Timeout = client.timeouts
 	}
 	return &client, nil
 }

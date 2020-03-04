@@ -1,30 +1,31 @@
 package httpclient
 
+import (
+	"time"
+)
+
 type Option func(client *HttpClient)
 
-func WithDoer(doer Doer) Option {
+func WithDoer(client Doer) Option {
 	return func(c *HttpClient) {
-		c.client = doer
+		if client == nil {
+			return
+		}
+		c.client = client
 	}
 }
 
-//func WithTimeout(timeout time.Duration) Option {
-//	return func(c *HttpClient) {
-//		c.client.Timeout = timeout
-//	}
-//}
+func WithTimeout(timeout time.Duration) Option {
+	return func(c *HttpClient) {
+		c.timeouts = timeout
+	}
+}
 
 func WithRetryCount(retryCount int) Option {
 	return func(c *HttpClient) {
 		c.retryCount = retryCount
 	}
 }
-
-//func WithTransport(t *http.Transport) Option {
-//	return func(c *HttpClient) {
-//		c.client.Transport = t
-//	}
-//}
 
 func WithRequestHook(rh RequestHook) Option {
 	return func(c *HttpClient) {
